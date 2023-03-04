@@ -34,17 +34,17 @@ func (o addressOption) apply(a *Acceptor) {
 }
 
 type Acceptor struct {
-	listener             net.Listener
-	connectionMiddleware *ConnectionHandlerChain
-	Config               ListenerConfig
-	opts                 []ListenerOption
+	listener              net.Listener
+	connectionMiddlewares *connectionMiddlewaresChain
+	Config                ListenerConfig
+	opts                  []ListenerOption
 }
 
-func NewTCPAcceptor(config ListenerConfig, opts ...ConnectionMiddleware) (*Acceptor, error) {
+func NewTCPAcceptor(config ListenerConfig, opts ...connectionMiddlewares) (*Acceptor, error) {
 	return &Acceptor{
-		Config:               config,
-		opts:                 config.opts,
-		connectionMiddleware: NewConnectionHandlerChain(opts...),
+		Config:                config,
+		opts:                  config.opts,
+		connectionMiddlewares: NewConnectionHandlerChain(opts...),
 	}, nil
 }
 
@@ -116,5 +116,5 @@ func (a *Acceptor) Close() error {
 func (a *Acceptor) handleNewConnection(conn net.Conn) {
 	// Here, we will run a series of connection middlewares that you have registered.
 	// For example: MaxConnectionsMiddleware
-	a.connectionMiddleware.Execute(a, conn)
+	a.connectionMiddlewares.Execute(a, conn)
 }
