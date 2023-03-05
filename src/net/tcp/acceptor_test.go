@@ -25,7 +25,7 @@ func TestAcceptor_ConnectionsMiddleware(t *testing.T) {
 		Protocol: "tcp",
 		Address:  ":11002",
 	}, &MaxConnectionsMiddleware{
-		maxCount: 1,
+		maxCount: 5,
 	})
 
 	if err != nil {

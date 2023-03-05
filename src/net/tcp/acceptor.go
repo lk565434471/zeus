@@ -9,12 +9,14 @@ import (
 )
 
 type ListenerConfig struct {
-	Protocol     string
-	Timeout      time.Duration
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	Address      string
-	opts         []ListenerOption
+	Protocol      string
+	Timeout       time.Duration
+	ReadTimeout   time.Duration
+	WriteTimeout  time.Duration
+	MaxSendBuffer int
+	MaxRecvBuffer int
+	Address       string
+	opts          []ListenerOption
 }
 
 type ListenerOption interface {
@@ -34,17 +36,17 @@ func (o addressOption) apply(a *Acceptor) {
 }
 
 type Acceptor struct {
-	listener              net.Listener
-	connectionMiddlewares *connectionMiddlewaresChain
-	Config                ListenerConfig
-	opts                  []ListenerOption
+	listener             net.Listener
+	ConnectionMiddleware *ConnectionMiddlewaresChain
+	Config               ListenerConfig
+	opts                 []ListenerOption
 }
 
-func NewTCPAcceptor(config ListenerConfig, opts ...connectionMiddlewares) (*Acceptor, error) {
+func NewTCPAcceptor(config ListenerConfig, opts ...ConnectionMiddleware) (*Acceptor, error) {
 	return &Acceptor{
-		Config:                config,
-		opts:                  config.opts,
-		connectionMiddlewares: NewConnectionHandlerChain(opts...),
+		Config:               config,
+		opts:                 config.opts,
+		ConnectionMiddleware: NewConnectionHandlerChain(opts...),
 	}, nil
 }
 
@@ -116,5 +118,5 @@ func (a *Acceptor) Close() error {
 func (a *Acceptor) handleNewConnection(conn net.Conn) {
 	// Here, we will run a series of connection middlewares that you have registered.
 	// For example: MaxConnectionsMiddleware
-	a.connectionMiddlewares.Execute(a, conn)
+	a.ConnectionMiddleware.Execute(a, conn)
 }

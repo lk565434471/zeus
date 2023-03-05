@@ -5,37 +5,37 @@ import (
 	"net"
 )
 
-type connectionMiddlewares interface {
+type ConnectionMiddleware interface {
 	HandleConnection(error, net.Listener, net.Conn, func(error))
 }
 
-type connectionMiddlewaresChain struct {
-	handlers []connectionMiddlewares
+type ConnectionMiddlewaresChain struct {
+	handlers []ConnectionMiddleware
 }
 
-func NewConnectionHandlerChain(handlers ...connectionMiddlewares) *connectionMiddlewaresChain {
-	return &connectionMiddlewaresChain{
+func NewConnectionHandlerChain(handlers ...ConnectionMiddleware) *ConnectionMiddlewaresChain {
+	return &ConnectionMiddlewaresChain{
 		handlers: handlers,
 	}
 }
 
-func (c *connectionMiddlewaresChain) Use(h connectionMiddlewares) *connectionMiddlewaresChain {
+func (c *ConnectionMiddlewaresChain) Use(h ConnectionMiddleware) *ConnectionMiddlewaresChain {
 	c.handlers = append(c.handlers, h)
 
 	return c
 }
 
-func (c *connectionMiddlewaresChain) WithConnectionHandlers(handlers ...connectionMiddlewares) *connectionMiddlewaresChain {
+func (c *ConnectionMiddlewaresChain) WithConnectionHandlers(handlers ...ConnectionMiddleware) *ConnectionMiddlewaresChain {
 	c.handlers = append(c.handlers, handlers...)
 
 	return c
 }
 
-func (c *connectionMiddlewaresChain) Execute(ln net.Listener, conn net.Conn) {
+func (c *ConnectionMiddlewaresChain) Execute(ln net.Listener, conn net.Conn) {
 	c.execute(0, ln, conn, nil)
 }
 
-func (c *connectionMiddlewaresChain) execute(index int, ln net.Listener, conn net.Conn, err error) {
+func (c *ConnectionMiddlewaresChain) execute(index int, ln net.Listener, conn net.Conn, err error) {
 	if index < len(c.handlers) {
 		handler := c.handlers[index]
 		next := func(e error) {

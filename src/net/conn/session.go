@@ -33,6 +33,22 @@ func (s *Session) GetId() uint64 {
 	return s.id
 }
 
+func (s *Session) GetFd() (uintptr, error) {
+	sock, ok := s.conn.(*net.TCPConn)
+
+	if !ok {
+		return ^(uintptr(0)), nil
+	}
+
+	f, err := sock.File()
+
+	if err != nil {
+		return ^(uintptr(0)), err
+	}
+
+	return f.Fd(), nil
+}
+
 func (s *Session) Read(b []byte) (n int, err error) {
 	n, err = s.conn.Read(b)
 
