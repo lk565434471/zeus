@@ -1,4 +1,4 @@
-package bytes
+package double_linked_buffer
 
 import (
 	"fmt"

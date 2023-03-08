@@ -1,4 +1,4 @@
-package bytes
+package double_linked_buffer
 
 import (
 	"errors"
@@ -10,9 +10,12 @@ var (
 
 type node struct {
 	buf  []byte
-	size int
 	prev *node
 	next *node
+}
+
+func (n *node) len() int {
+	return len(n.buf)
 }
 
 type DoubleLinkedBuffer struct {
@@ -30,7 +33,6 @@ func (dlb *DoubleLinkedBuffer) Append(p []byte) {
 
 	n := &node{
 		prev: dlb.tail,
-		size: size,
 	}
 	n.buf = append(n.buf, p...)
 
@@ -41,7 +43,7 @@ func (dlb *DoubleLinkedBuffer) Append(p []byte) {
 	}
 
 	dlb.tail = n
-	dlb.size += n.size
+	dlb.size += n.len()
 }
 
 func (dlb *DoubleLinkedBuffer) Prepend(p []byte) {
@@ -53,7 +55,6 @@ func (dlb *DoubleLinkedBuffer) Prepend(p []byte) {
 
 	n := &node{
 		next: dlb.head,
-		size: size,
 	}
 	n.buf = append(n.buf, p...)
 
@@ -64,7 +65,7 @@ func (dlb *DoubleLinkedBuffer) Prepend(p []byte) {
 	}
 
 	dlb.head = n
-	dlb.size += n.size
+	dlb.size += n.len()
 }
 
 func (dlb *DoubleLinkedBuffer) InsertBefore(n *node, p []byte) {
@@ -86,12 +87,11 @@ func (dlb *DoubleLinkedBuffer) InsertBefore(n *node, p []byte) {
 	newNode := &node{
 		prev: n.prev,
 		next: n,
-		size: size,
 	}
 	newNode.buf = append(newNode.buf, p...)
 	n.prev.next = newNode
 	n.prev = newNode
-	dlb.size += newNode.size
+	dlb.size += newNode.len()
 }
 
 func (dlb *DoubleLinkedBuffer) InsertAfter(n *node, p []byte) {
@@ -113,12 +113,11 @@ func (dlb *DoubleLinkedBuffer) InsertAfter(n *node, p []byte) {
 	newNode := &node{
 		prev: n,
 		next: n.next,
-		size: size,
 	}
 	newNode.buf = append(newNode.buf, p...)
 	n.next.prev = newNode
 	n.next = newNode
-	dlb.size += newNode.size
+	dlb.size += newNode.len()
 }
 
 func (dlb *DoubleLinkedBuffer) Remove(n *node) {
@@ -138,7 +137,7 @@ func (dlb *DoubleLinkedBuffer) Remove(n *node) {
 		n.next.prev = n.prev
 	}
 
-	dlb.size -= n.size
+	dlb.size -= n.len()
 }
 
 // Read 实现 io.Reader 接口
@@ -152,7 +151,7 @@ func (dlb *DoubleLinkedBuffer) Read(p []byte) (size int, err error) {
 	left := capacity
 
 	for n := dlb.head; n != nil && left > 0; n = n.next {
-		if left >= n.size {
+		if left >= n.len() {
 			nBytes := copy(p[size:], n.buf)
 			size += nBytes
 			left -= nBytes
@@ -176,8 +175,8 @@ func (dlb *DoubleLinkedBuffer) Read(p []byte) (size int, err error) {
 			break
 		}
 
-		if left >= n.size {
-			left -= n.size
+		if left >= n.len() {
+			left -= n.len()
 			dlb.Remove(n)
 		} else {
 			n.buf = n.buf[left:]
