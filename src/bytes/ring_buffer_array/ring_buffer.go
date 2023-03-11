@@ -171,8 +171,128 @@ func (b *RingBuffer) Write(p []byte) (int, error) {
 	return size, nil
 }
 
-func (b *RingBuffer) Grow(newCap int) {
+func (b *RingBuffer) WriteByte(c byte) {
+	if 1 > b.Available() {
+		if !b.canGrow {
+			return
+		}
 
+		b.Grow(b.cap * 2)
+	}
+
+	b.buf[b.writePos] = c
+	b.writePos++
+
+	if b.writePos == b.cap {
+		b.writePos = 0
+	}
+
+	b.empty = false
+}
+
+func (b *RingBuffer) WriteString(str string) (int, error) {
+	return b.Write(bytes.StringToBytes(str))
+}
+
+func (b *RingBuffer) WriteTo(w io.Writer) (n int64, err error) {
+	if b.empty {
+		return
+	}
+
+	var l int
+	size := b.Size()
+
+	if b.writePos > b.readPos {
+		l, err = w.Write(b.buf[b.readPos : b.readPos+size])
+		n = int64(l)
+
+		if l != size {
+			return n, bytes.ErrInvalidWrite
+		}
+
+		b.readPos += l
+		b.tryReset()
+
+		return
+	}
+
+	if b.cap >= (b.readPos + size) {
+		l, err = w.Write(b.buf[b.readPos : b.readPos+size])
+		n = int64(l)
+
+		if l != size {
+			return n, bytes.ErrInvalidWrite
+		}
+
+		return
+	}
+
+	l, err = w.Write(b.buf[b.readPos:])
+	n = int64(l)
+
+	if err != nil {
+		return n, err
+	}
+
+	b.readPos = (b.readPos + l) % b.cap
+
+	return
+}
+
+func (b *RingBuffer) Grow(newCap int) {
+	if b.cap >= newCap {
+		return
+	}
+
+	buf := make([]byte, newCap)
+	copy(buf, b.buf)
+	b.buf = buf
+	b.cap = newCap
+}
+
+func (b *RingBuffer) Discard(n int) (int, error) {
+	if 0 >= n {
+		return 0, nil
+	}
+
+	size := b.Size()
+
+	if size > n {
+		b.readPos = (b.readPos + n) % b.cap
+		return n, nil
+	}
+
+	b.Reset()
+	return size, nil
+}
+
+func (b *RingBuffer) Peek(n int) ([]byte, error) {
+	if b.empty {
+		return make([]byte, 0), nil
+	}
+
+	readableSize := b.Size()
+
+	if readableSize > n {
+		readableSize = n
+	}
+
+	buf := make([]byte, readableSize)
+
+	if (b.writePos > b.readPos) ||
+		(b.cap >= (b.readPos + readableSize)) {
+		copy(buf, b.buf[b.readPos:b.readPos+readableSize])
+	} else {
+		pos := copy(buf, b.buf[b.readPos:])
+		left := b.cap - b.readPos
+		copy(buf[pos:], b.buf[:left])
+	}
+
+	return buf, nil
+}
+
+func (b *RingBuffer) PeekAll() ([]byte, error) {
+	return b.Peek(b.Size())
 }
 
 // Size returns the number of bytes that can be read from the buffer.
@@ -192,6 +312,10 @@ func (b *RingBuffer) Size() int {
 	return b.cap - b.readPos + b.writePos
 }
 
+func (b *RingBuffer) Capacity() int {
+	return b.cap
+}
+
 func (b *RingBuffer) Available() int {
 	if b.readPos == b.writePos {
 		if b.empty {
@@ -206,6 +330,14 @@ func (b *RingBuffer) Available() int {
 	}
 
 	return b.cap - b.writePos + b.readPos
+}
+
+func (b *RingBuffer) Full() bool {
+	return (b.readPos == b.writePos) && !b.empty
+}
+
+func (b *RingBuffer) Empty() bool {
+	return b.empty
 }
 
 func (b *RingBuffer) Reset() {
